@@ -1,0 +1,103 @@
+library(gsheet)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(tidyverse)
+library(gridExtra)
+library(grid)
+library(devtools)
+library(plotly)
+library(treemapify)
+
+
+
+corona <- read.csv(file="https://brasil.io/dataset/covid19/caso?format=csv")
+corona <- as_tibble(corona)
+corona$date <- as.Date(corona$date)
+
+#hoje <- ymd("2020-03-25")
+hoje <- today() - 1
+
+
+
+g1 <- corona %>%
+  filter(corona$place_type == "state") %>%
+  filter(date <= hoje) %>%
+  complete(date = seq.Date(min(date), max(date), by="day"), state) %>%
+  select(date, state, confirmed) %>%
+  mutate(confirmed = ifelse(is.na(confirmed), 0, confirmed)) %>%
+  #arrange(desc(confirmed)) %>%
+  print(n = Inf)  %>%
+  filter(state %in% c("SP", "RJ", "PB", "AL", "RN", "PE", "BA")) %>%
+ggplot(., aes(x=date, y=confirmed, color = state)) + geom_line(size = 1) + geom_point(size = 3) +
+  labs(title="",x="Dia", y = "Casos Confirmados", color = "Estados", caption = "H. Wickham. ggplot2: Elegant Graphics for Data Analysis Springer-Verlag New York, 2009.") +
+  scale_x_date(date_labels = "%b %d") + 
+  theme_bw() + theme(legend.title = element_text(colour="black", size=14, face="bold"),
+                     axis.title.x = element_text(size=16, face="bold", vjust = 0), 
+                     axis.title.y = element_text(size=16, face="bold", vjust = 2),
+                     axis.text.x=element_text(size=14),
+                     axis.text.y = element_text(size=14), legend.text=element_text(size=14))
+
+ggplotly(g1)
+
+
+
+
+
+g2 <- corona %>%
+  filter(place_type == "state") %>%
+  filter(date == hoje) %>%
+  group_by(state) %>%
+  #summarize(sumC = sum(confirmed)) %>%
+  arrange(desc(confirmed)) %>%
+  print(n = 27)  %>%
+  head(10) %>%
+  ggplot(., aes(x=reorder(state, confirmed), y= confirmed)) + 
+  geom_bar(stat = "identity", position = "dodge", fill="#6EA0CE") + 
+  geom_text(aes(label=paste0(" ", confirmed*100/100)), colour=rep("black",length(n)), fontface='bold', position = position_dodge(width = .9), hjust=-.25, size=5) + 
+  labs(title=" ",x= "Estados", y = "Casos Confirmados") + 
+  theme_bw() + scale_y_continuous(limits = c(0, 1500), breaks = seq(0,1500, 300)) +
+  theme(legend.title = element_text(colour="black", size=14, face="bold"), 
+        axis.title.x = element_text(size=16, face="bold", vjust = 0), 
+        axis.title.y = element_text(size=16, face="bold", vjust = 2.5),
+        axis.text.x=element_text(size=14),
+        axis.text.y = element_text(size=14), legend.text=element_text(size=14)) +  coord_flip()
+
+
+
+
+g3 <- corona %>%
+  filter(place_type == "state") %>%
+  filter(date == hoje) %>%
+  group_by(state) %>%
+  #summarize(sumC = sum(confirmed)) %>%
+  arrange(desc(confirmed_per_100k_inhabitants)) %>%
+  print(n = 27)  %>%
+  head(10) %>%
+  ggplot(., aes(x=reorder(state, confirmed_per_100k_inhabitants ), y= confirmed_per_100k_inhabitants)) + 
+  geom_bar(stat = "identity", position = "dodge", fill="#6EA0CE") + 
+  geom_text(aes(label=paste0(" ", round(confirmed_per_100k_inhabitants*100/100, 2))), colour=rep("black",length(n)), fontface='bold', position = position_dodge(width = .9), hjust=-.25, size=5) + 
+  labs(title=" ",x= "Estados", y = "Casos confirmados por 100 mil habitantes") + 
+  theme_bw() + scale_y_continuous(limits = c(0, 10), breaks = seq(0,10, 2)) +
+  theme(legend.title = element_text(colour="black", size=14, face="bold"), 
+        axis.title.x = element_text(size=16, face="bold", vjust = 0), 
+        axis.title.y = element_text(size=16, face="bold", vjust = 2.5),
+        axis.text.x=element_text(size=14),
+        axis.text.y = element_text(size=14), legend.text=element_text(size=14)) +  coord_flip()
+
+
+
+g4 <- corona %>%
+  filter(place_type == "state") %>%
+  filter(date == hoje) %>%
+  group_by(state) %>%
+  arrange(desc(confirmed)) %>%
+  #print(n = 10)  %>%
+  #head(10) %>%
+ggplot(., aes(area = confirmed_per_100k_inhabitants, label = state)) +
+  geom_treemap(fill="#fcbba1") +
+  geom_treemap_text(fontface = "italic", colour = "white", place = "centre", grow = T) 
+
+
+
+
